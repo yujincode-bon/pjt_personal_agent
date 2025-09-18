@@ -1,0 +1,206 @@
+# 진행한 내용
+1. 결측치 처리 
+	### 결측치 확인
+	- 결측값이 존재하는 컬럼 및 개수
+	- Category 2            4
+	- Category 3          869
+	- ingredients          61
+	- Supplement Facts    530 (추후에 성분을 참고하여 채워 넣을 예정, 보충정보(영양성분))
+2. 중복값 처리 
+	### 불필요한 레코드 필터링 
+	- 카테고리 1, 2 기준으로 키워드 필터링 한 결과, 해당 데이터셋에서 영양제와 관련된 상품 개수는 1221->325 개로 감소함.
+
+3. df_total: 파싱 결과 병합 및 저장
+	•	final_parsed, final_parse_error, final_fail_reason 컬럼을 포함하여 전체 df_total에 병합
+	•	파싱 성공 데이터는 df_parsed에 저장
+	•	parsed_supplements_final.csv로 저장 완료
+	•	실패 사유 통계까지 출력 및 분석 (공란, 성분 추출 실패 등
+4. df_parsed(파싱 성공 데이터만 저장) 생성: Supplement Facts 파싱 개선 작업
+	•	처음에는 기본 파싱 함수로 시작해 많은 데이터가 실패했음 (112건).
+	•	여러 차례(총 7차) 보완 파싱 함수 작성:
+	•	정규표현식 수정
+	•	단위 보완 (mg, mcg, g, %, IU 등)
+	•	괄호, 콜론, 공백, 특수문자 처리 개선
+	•	복잡한 한 줄 텍스트도 처리 가능하도록 다단어 매칭 추가
+	•	최종적으로 파싱 실패율을 33% → 6.5% 수준으로 감소시킴:
+	•	총 325개 중 219개 성공, 106개 실패
+	최종적으로 214 개의 파싱된 데이터를 얻을 수 있었음 
+	- 공란이나 비정상 케이스는 파싱을 진행할 수 없었음. 사람이 봐도 모르는 데이터가 존재했음.
+5.  RAG JSON 포맷 생성
+	•	파싱된 데이터를 LangChain / LlamaIndex 등에서 사용할 수 있도록 RAG용 JSON 포맷으로 변환
+	•	Title, Category, Brand, Description, parsed_data → supplement_facts로 구조화
+	•	final_parsed 데이터를 기반으로 JSON 생성하도록 수정 완료
+	•	supplement_rag_data.json 저장 완료
+	
+
+
+
+
+
+## 파싱 실패 유형 
+| 실패 유형               | 키워드 또는 조건 예시                                                     |
+| ------------------- | ---------------------------------------------------------------- |
+| `missing_fact`      | `Supplement Facts`가 비어 있음 또는 None                                |
+| `html_formatting`   | `<br>`, `\n`, `\r`, 들여쓰기, 여러 줄 표현 등                              |
+| `proprietary_blend` | `Proprietary Blend`, `Herbal Blend`, `Extract` 등 다중 성분이 한 줄에 있음  |
+| `multi_dv`          | `%Daily Value`가 여러 세트로 제공됨 (`% 2-4 yrs`, `1-3 yrs`, `Adults`, 등) |
+| `unstructured`      | “Serving Size”는 있는데 그 외 정형 표현 없는 경우                              |
+| `other`             | 위 조건에 해당하지 않음                                                    |
+
+ ## 파싱 오류 해결 코드 작동 방식 요약 
+입력값 유효성 검사: 텍스트 입력이 없거나 문자열 타입이 아니면 오류를 반환합니다.
+
+시작점 찾기: 'Supplement Facts' 텍스트 블록 전체에서 'Supplement Facts' 또는 **'Serving Size'**와 같은 핵심 키워드를 찾아, 정확히 영양 성분 정보가 시작되는 지점부터 파싱을 시작합니다. 이는 불필요한 서두 부분을 제거하는 역할을 합니다.
+
+데이터 클리닝: 추출된 텍스트 블록에서 줄바꿈, 탭, 그리고 †, ‡, *, %와 같은 불필요한 기호를 제거하여, 깔끔한 형태로 만듭니다.
+
+정규식을 통한 성분 추출: re.findall()을 사용하여 정규식 패턴과 일치하는 모든 성분, 수치, 단위(mg, mcg, g, IU 등)를 찾아 리스트로 반환합니다.
+
+결과 정리: 추출된 각 성분 정보를 'name', 'amount', 'unit' 키를 가진 딕셔너리 형태로 정리하여 최종 결과를 구성합니다.
+
+### 파싱 결과 변수명 요약 
+변수명
+설명
+df_final:
+최종 보완된 파서 결과를 반영한 DataFrame
+final_parse_result:
+파싱 결과 (성공/실패 포함된 dict 형태)
+final_parse_error:
+파싱 실패 여부 (Boolean)
+fail_reason_final:
+파싱 실패 사유 (문자열)
+
+## 	마지막까지 파싱이 잘 안됐던 경우 
+- 괄호가 많은 구조 + 수치가 아닌 비율 (예: 95%)이 많이 포함된 구조
+→ 정규식 매칭이 너무 많은 괄호/기호에 의해 방해받음
+- 	텍스트가 너무 무질서한 경우
+→ 텍스트가 잘못 줄바꿈되거나 기호가 중간에 섞여 있어 파싱 실패
+
+
+#### 최종 파싱 완료된 데이터 오류 바로잡기 
+- nan 값이 발생한 이유  
+df_final7는 **일부 행(주로 실패 행)**만 들어있고,
+ • df_total은 전체 325행이에요.
+	•	그런데 df_total['parse_error'] = df_final7['final7_parse_error']처럼 그냥 대입하면, 길이가 2~300인 시리즈를 325행짜리 DF에 억지로 끼워 넣으려고 해서,
+	•	길이 불일치 오류가 나거나,
+	•	혹은 기존 값을 덮어쓰며 NaN이 대량으로 생깁니다(대상 아닌 행엔 값이 없으니까요).
+
+핵심은 “기본값은 전체 DF의 초기 값으로 두고, df_final7이 있는 인덱스에만 덮어쓰기” 입니다.
+또한 인덱스를 절대 리셋하지 않거나, 리셋했다면 키 컬럼으로 병합해야 합니다.
+
+# 전체 통합 정리 코드 전에 실패한 이유 정리 
+좋아요, 지금 나온 결과로 문제를 정확히 파악할 수 있어요.
+아래는 무엇이 잘못되었고, 어떻게 고쳐야 하는지에 대한 설명입니다.
+
+⸻
+
+✅ 지금 문제가 되는 원인 요약
+
+항목	결과
+len(df_supp_checked):	325 → 전체 제품 수
+len(df_failed):	198 → 1차 파싱 실패한 제품 수
+len(df_final7):	2   → 7차까지 재파싱 후 최종 살아남은(?) 행
+df_failed.index[:5] :	[0, 3, 24, 44, 45] → 1차 실패 데이터의 인덱스들
+df_final7.index[:5]	:[0, 55] → df_failed에서 파생되었어야 할 df_final7이 뭔가 꼬임
+df_final7.index ⊆ df_supp_checked.index ?	❌ False → 인덱스 꼬임 발생
+
+
+⸻
+
+🚨 문제 핵심
+
+df_final7은 재파싱 대상인 실패한 데이터(df_failed)에서 만들어진 것이어야 해요.
+그런데 지금은 df_failed의 인덱스와 전혀 일치하지 않아요.
+즉, 아마도 중간에 reset_index(drop=True)를 해서 인덱스가 날아가거나, 전혀 다른 DataFrame에서 뽑은 것일 가능성이 높습니다.
+
+⸻
+
+🔧 해결 방법 1: df_failed에서 df_final7 다시 만들기
+
+가장 간단한 방법은 정상적인 인덱스를 유지한 채로 df_final7을 다시 만드는 것이에요.
+
+# 1. 1차 실패 데이터 재생성 (인덱스 그대로 유지)
+df_failed = df_supp_checked[df_supp_checked['parse_error'] == True]
+
+# 2. 보완된 파싱 함수 적용 (예: parse_supplement_facts_v7)
+df_final7 = apply_final_parsing_v7(df_failed)
+
+# 3. ✅ df_final7은 df_failed와 동일한 인덱스를 가짐 (이제 문제 없음)
+df_final7.index.isin(df_supp_checked.index).all()  # True가 나와야 정상!
+
+위 과정을 거친 뒤에 아래 코드를 사용해서 전체에 통합 적용하면 됩니다.
+
+# 전체 DF 기준으로 정리
+df_total = df_supp_checked.copy()
+df_total['final_parsed']      = df_total.get('parsed_ingredients')  # 초기 값
+df_total['final_parse_error'] = df_total.get('parse_error')
+df_total['final_fail_reason'] = df_total.get('fail_reason', None)
+
+# 7차 파싱 결과 덮어쓰기
+idx = df_final7.index
+df_total.loc[idx, 'final_parsed']      = df_final7['final7_parsed']
+df_total.loc[idx, 'final_parse_error'] = df_final7['final7_parse_error']
+df_total.loc[idx, 'final_fail_reason'] = df_final7['fail_reason_final7']
+
+# 성공으로 바뀐 행 사유 제거
+df_total.loc[df_total['final_parse_error'] == False, 'final_fail_reason'] = None
+
+
+⸻
+
+🔍 디버깅 포인트 (꼭 확인!)
+
+확인 항목	확인 방법
+df_final7 만든 직후 reset_index 하지 않았는지?	있으면 안 됨 ❌
+**apply_final_parsing_v7(df_failed)**로 만들었는지?	꼭 df_failed 기반이어야 함
+df_final7의 index가 df_failed.index와 같아야 함	df_final7.index.equals(df_failed.index) → True
+
+
+⸻
+
+🧼 정리: 다시 재파싱부터 정리하고 싶은 경우
+
+# 1) 실패한 데이터만 추출
+df_failed = df_supp_checked[df_supp_checked['parse_error']]
+
+# 2) 최신 파싱 함수 적용 (예: 7차)
+df_final7 = apply_final_parsing_v7(df_failed)
+
+# 3) 전체 기준 통합
+df_total = df_supp_checked.copy()
+df_total['final_parsed']      = df_total.get('parsed_ingredients')
+df_total['final_parse_error'] = df_total.get('parse_error')
+df_total['final_fail_reason'] = df_total.get('fail_reason', None)
+
+# 4) 재파싱 덮어쓰기 (인덱스 기준)
+idx = df_final7.index
+df_total.loc[idx, 'final_parsed']      = df_final7['final7_parsed']
+df_total.loc[idx, 'final_parse_error'] = df_final7['final7_parse_error']
+df_total.loc[idx, 'final_fail_reason'] = df_final7['fail_reason_final7']
+
+# 5) 성공한 행에서 실패 사유 제거
+df_total.loc[df_total['final_parse_error'] == False, 'final_fail_reason'] = None
+
+# 6) 최종 통계 확인
+total    = len(df_total)
+success  = (df_total['final_parse_error'] == False).sum()
+fail     = (df_total['final_parse_error'] == True).sum()
+unknown  = df_total['final_parse_error'].isna().sum()
+print(f"📊 전체: {total} / ✅ 성공: {success} / ❌ 실패: {fail} / ❓ NaN: {unknown}")
+
+
+⸻
+
+✅ 기대 결과
+
+📊 전체: 325 / ✅ 성공: 324 / ❌ 실패: 1 / ❓ NaN: 0
+
+
+⸻
+
+필요하면 위 코드를 전체 정리된 버전으로 모아줄게요.
+이제 NaN 문제는 해결 완료! 💪
+추가 분석(예: 성분별 분포, 단위별 분포, 인기 브랜드 등)도 도와줄게요.
+
+df_total:325 개 (최초로 영양제만 있는 데이터만 추려낸 것)
+df_retry8: 파싱 실패한 111개 데이터에 관한 정보가 나옴
