@@ -24,6 +24,6 @@ if __name__ == "__main__":
 
     result = graph.invoke(test_state)
   
-    print("\n✅ 추천 결과:")
-    for i, rec in enumerate(result["recommendations"], start=1):
-        print(f"{i}. {rec['title']} ({rec['brand']}) - 평점 {rec['avg_rating']} / 리뷰 {rec['reviews_count']}")#$
+print("\n✅ 추천 결과:")
+for i, rec in enumerate(result["recommendations"], start=1):
+    print(f"{i}. {rec.get('title', 'N/A')} ({rec.get('brand', 'N/A')}) - 평점 {rec.get('avg_rating', 'N/A')} / 리뷰 {rec.get('reviews_count', 'N/A')}")
