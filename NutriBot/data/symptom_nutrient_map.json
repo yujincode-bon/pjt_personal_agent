@@ -1,0 +1,52 @@
+{
+  "fatigue": [
+    "Magnesium",
+    "Vitamin B6",
+    "Vitamin B12",
+    "Iron",
+    "Vitamin C"
+  ],
+  "sleep": [
+    "Magnesium",
+    "Vitamin D",
+    "Calcium"
+  ],
+  "stress": [
+    "Magnesium",
+    "Vitamin B6",
+    "Folate",
+    "Omega-3"
+  ],
+  "focus": [
+    "Vitamin B12",
+    "Omega-3"
+  ],
+  "immunity": [
+    "Vitamin C",
+    "Zinc",
+    "Vitamin D"
+  ],
+  "anemia": [
+    "Iron",
+    "Folate",
+    "Vitamin B12"
+  ],
+  "bone health": [
+    "Calcium",
+    "Vitamin D"
+  ],
+  "depression": [
+    "Vitamin D",
+    "Vitamin B6",
+    "Omega-3"
+  ],
+  "hair loss": [
+    "Iron",
+    "Zinc",
+    "Vitamin B12"
+  ],
+  "menstrual pain": [
+    "Magnesium",
+    "Vitamin B6"
+  ]
+}

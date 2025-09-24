@@ -1,47 +1,58 @@
-# intake_check
-# 사용자 복용 + 추천 성분 → RDA/UL 기준 초과 감지
+# nodes/intake_check_node.py
 
-
+import json
 from state import AgentState
+from tools.names import clean_nutrient_name  # ✅ 정규화 함수 import
 
-NUTRIENT_LIMITS = {
-    "Vitamin C": {"rda": 100, "ul": 2000, "unit": "mg"},
-    "Zinc": {"rda": 10, "ul": 40, "unit": "mg"},
-    "Vitamin D": {"rda": 15, "ul": 100, "unit": "mcg"},
-}
+# RDA JSON 파일 로드
+with open("../mappings/rda_korea_2020.json", "r") as f:
+    RDA_TABLE = json.load(f)
 
 def intake_check_node(state: AgentState) -> AgentState:
     profile = state["profile"]
-    current_intake = profile.get("current_intake", [])
+    current = profile.get("current_intake", [])
     recommendations = state.get("recommendations", [])
 
+    # 🔍 성분별 총 섭취량 계산
     total_intake = {}
 
-    for item in current_intake:
-        name = item["name"]
-        amount = item["amount"]
-        total_intake[name] = total_intake.get(name, 0) + amount
-
-    for product in recommendations:
-        desc = product.get("description", "")
-        for nutrient in NUTRIENT_LIMITS:
-            if nutrient.lower() in desc.lower():
-                total_intake[nutrient] = total_intake.get(nutrient, 0) + (
-                    NUTRIENT_LIMITS[nutrient]["rda"] * 0.5
-                )
-
-    warnings = []
-    for nutrient, total in total_intake.items():
-        limits = NUTRIENT_LIMITS.get(nutrient)
-        if not limits:
+    # 1️⃣ 현재 복용 중인 성분
+    for item in current:
+        raw = item.get("name", "")
+        nutrient = clean_nutrient_name(raw)
+        if not nutrient:
             continue
 
-        if total > limits["ul"]:
-            warnings.append(f"❗ {nutrient}: 총 {total}{limits['unit']} (UL {limits['ul']}{limits['unit']} 초과)")
-        elif total > limits["rda"] * 2:
-            warnings.append(f"⚠️ {nutrient}: 총 {total}{limits['unit']} (RDA 2배 초과, UL 주의 필요)")
-        elif total > limits["rda"]:
-            warnings.append(f"ℹ️ {nutrient}: 총 {total}{limits['unit']} (RDA 초과)")
+        total_intake[nutrient] = total_intake.get(nutrient, 0) + float(item.get("amount", 0))
+
+    # 2️⃣ 추천된 제품에서 성분 추출
+    for product in recommendations:
+        desc = product.get("description", "")
+        nutrient = clean_nutrient_name(desc)
+        if nutrient:
+            # 제품 description에는 수치는 없으므로 예시로 50mg 추가 (실제 파싱 필요)
+            total_intake[nutrient] = total_intake.get(nutrient, 0) + 50
+
+    # 3️⃣ 섭취량 분석 (RDA/UL 비교)
+    warnings = []
+
+    for nutrient, total in total_intake.items():
+        if nutrient not in RDA_TABLE:
+            continue
+
+        rda = RDA_TABLE[nutrient].get("rda", 0)
+        ul = RDA_TABLE[nutrient].get("ul", 99999)
+
+        msg = None
+        if total >= ul:
+            msg = f"🚨 {nutrient}: 총 {total}mg (UL {ul} 초과!)"
+        elif total >= rda * 2:
+            msg = f"⚠️ {nutrient}: 총 {total}mg (RDA 2배 초과, UL 주의 필요)"
+        elif total >= rda:
+            msg = f"🔎 {nutrient}: 총 {total}mg (권장량 도달)"
+
+        if msg:
+            warnings.append(msg)
 
     state["warnings"] = warnings
     return state

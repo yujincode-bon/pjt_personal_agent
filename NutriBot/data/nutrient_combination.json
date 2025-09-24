@@ -1,0 +1,30 @@
+{
+  "good": [
+    [
+      "Vitamin C",
+      "Iron"
+    ],
+    [
+      "Vitamin D",
+      "Calcium"
+    ],
+    [
+      "Magnesium",
+      "Vitamin B6"
+    ]
+  ],
+  "bad": [
+    [
+      "Calcium",
+      "Iron"
+    ],
+    [
+      "Zinc",
+      "Magnesium"
+    ],
+    [
+      "Iron",
+      "Calcium"
+    ]
+  ]
+}
