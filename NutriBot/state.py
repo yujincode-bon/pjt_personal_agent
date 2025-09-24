@@ -1,19 +1,27 @@
 # state.py
+from typing import TypedDict, Optional
 
-from typing import List, Optional, Literal
-from pydantic import BaseModel
+# 현재 복용 성분 (사용자 입력)
+class NutrientIntake(TypedDict):
+    name: str
+    amount: float  # mg 또는 IU
+    unit: str
 
-# 사용자 프로필 정의
-class UserProfile(BaseModel):
-    sex: Literal["male", "female"]
+# 좋은/나쁜 조합 결과
+class CombinationResult(TypedDict):
+    good: list[str]
+    bad: list[str]
+
+# 사용자 프로필 정보
+class Profile(TypedDict):
+    sex: str
     age: int
-    symptoms: List[str]
-    current_intake: Optional[List[str]] = []
+    symptoms: list[str]
+    current_intake: list[NutrientIntake]
 
-# 에이전트 상태 정의
-class AgentState(BaseModel):
-    profile: Optional[UserProfile] = None
-    recommendations: Optional[List[dict]] = None
-    risk_report: Optional[str] = None
-    guideline: Optional[str] = None
-    answer: Optional[str] = None
+# LangGraph 상태 구조
+class AgentState(TypedDict):
+    profile: Profile
+    recommendations: Optional[list]
+    warnings: Optional[list]
+    combinations: Optional[CombinationResult]
