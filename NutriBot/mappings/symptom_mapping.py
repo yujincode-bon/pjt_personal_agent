@@ -1,4 +1,5 @@
 # nodes/symptom_mapping.py
+# mappings/symptom_mapping.py
 
 SYMPTOM_INGREDIENT_MAP = {
     "fatigue": ["Magnesium", "Vitamin B6", "CoQ10"],
