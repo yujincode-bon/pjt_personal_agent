@@ -1,29 +1,40 @@
 # tools/db.py
-
-from tools.retrieval import get_supplements_by_faiss
+import os
+from typing import List, Dict, Any
 from sqlalchemy import create_engine, text
 
-# 1️⃣ FAISS 기반 검색 함수 (recommendation_node 에서 사용)
-def get_supplements_from_db(symptoms: list[str], sex: str, age: int):
-    return get_supplements_by_faiss(symptoms)
+# ⚠️ 벡터 검색은 tools/retrieval.get_supplements_by_faiss를 사용
+#   (faiss_index 디렉토리와 OpenAI API KEY 필요)
+from tools.retrieval import get_supplements_by_faiss
 
+DB_URL = os.getenv("DB_URL", "postgresql://postgres:67368279@localhost:5432/NutriBot")
+_engine = create_engine(DB_URL)
 
-# 2️⃣ 전체 제품 불러오기 (goal_based_node 에서 사용)
-def load_all_products():
-    engine = create_engine("postgresql://postgres:67368279@localhost:5432/NutriBot")
-    with engine.connect() as conn:
+def load_all_products() -> List[Dict[str, Any]]:
+    """
+    DB에서 전체 제품을 dict 리스트로 가져온다.
+    """
+    with _engine.connect() as conn:
         result = conn.execute(text("""
             SELECT title, brand, avg_rating, reviews_count, description
             FROM supplements
         """))
         rows = result.fetchall()
-        return [
-            {
-                "title": row[0],
-                "brand": row[1],
-                "avg_rating": float(row[2]) if row[2] else 0.0,
-                "reviews_count": int(row[3]) if row[3] else 0,
-                "description": row[4] or ""
-            }
-            for row in rows
-        ]
+
+    products = []
+    for r in rows:
+        r = tuple(r)
+        products.append({
+            "title": str(r[0]) if len(r) > 0 else "",
+            "brand": str(r[1]) if len(r) > 1 else "",
+            "avg_rating": float(r[2]) if len(r) > 2 and r[2] is not None else 0.0,
+            "reviews_count": int(r[3]) if len(r) > 3 and r[3] is not None else 0,
+            "description": str(r[4]) if len(r) > 4 and r[4] is not None else "",
+        })
+    return products
+
+def get_supplements_from_db(symptoms: list[str], sex: str, age: int) -> List[Dict[str, Any]]:
+    """
+    FAISS 유사도 검색으로 제품 후보를 찾는다.
+    """
+    return get_supplements_by_faiss(symptoms, k=10)  # 반환: [{title, brand, avg_rating, reviews_count, description, ...}, ...]

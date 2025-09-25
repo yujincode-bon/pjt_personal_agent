@@ -1,54 +1,32 @@
 # nodes/recommendation_node.py
-
 from state import AgentState
+from tools.retrieval import get_supplements_by_faiss
 from tools.db import get_supplements_from_db
 
 def recommendation_node(state: AgentState) -> AgentState:
-    profile = state["profile"]
-    symptoms = profile["symptoms"]
-    sex = profile["sex"]
-    age = profile["age"]
+    symptoms = state["profile"]["symptoms"]
+    # ⚠️ LLM이 추출한 성분을 사용하도록 변경
+    ingredients = state.get("extracted_ingredients", [])
 
-    # 1️⃣ FAISS 기반 추천 제품 검색
-    results = get_supplements_from_db(symptoms, sex, age)
+    # 벡터 검색
+    results = get_supplements_by_faiss(symptoms)
+    results = get_supplements_from_db(ingredients, state["profile"]["sex"], state["profile"]["age"])
 
+    # 정규화 + 중복 제거
     seen = set()
-    top_recommendations = []
+    cleaned = []
+    for r in results:
+        product_code = r.get("product_code")
+        if not product_code or product_code in seen:
+            continue
+        seen.add(product_code)
+        # ✅ FAISS에서 반환된 전체 메타데이터(제품 정보)를 그대로 추가합니다.
+        # 이 데이터에는 supplement_facts가 포함되어 있습니다.
+        cleaned.append(r)
 
-    for row in results:
-        if isinstance(row, dict):
-            title = str(row.get("title", "")).strip()
-            brand = str(row.get("brand", "")).strip()
-            unique_key = f"{title}_{brand}"
+    # 평점 → 리뷰수 정렬
+    cleaned.sort(key=lambda x: (x.get("avg_rating", 0), x.get("reviews_count", 0)), reverse=True)
 
-            if unique_key in seen:
-                continue
-            seen.add(unique_key)
-
-            rec = {
-                "title": title,
-                "brand": brand,
-                "avg_rating": float(row.get("avg_rating", 0)),
-                "reviews_count": int(row.get("reviews_count", 0)),
-                "description": str(row.get("description", ""))
-            }
-        else:
-            rec = {
-                "title": str(row),
-                "brand": "",
-                "avg_rating": 0,
-                "reviews_count": 0,
-                "description": ""
-            }
-
-        top_recommendations.append(rec)
-
-    # 2️⃣ 평점 + 리뷰 수 기준 정렬
-    top_recommendations.sort(
-        key=lambda x: (x["avg_rating"], x["reviews_count"]),
-        reverse=True
-    )
-
-    # 3️⃣ 상태에 저장
-    state["recommendations"] = top_recommendations
+    # 상위 5개
+    state["recommendations"] = cleaned[:5]
     return state

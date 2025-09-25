@@ -1,6 +1,10 @@
 from agent import create_graph
 from state import AgentState
 
+# 🔽 .env 파일에서 환경변수 로드
+from dotenv import load_dotenv
+load_dotenv()
+
 if __name__ == "__main__":
     graph = create_graph()
 

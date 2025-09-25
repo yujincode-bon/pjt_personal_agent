@@ -6,36 +6,57 @@ from sqlalchemy import create_engine, text
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
-import os
 
 # 1. PostgreSQL에서 제품 데이터 로드
 def load_supplements_from_db():
     engine = create_engine("postgresql://postgres:67368279@localhost:5432/NutriBot")
     with engine.connect() as conn:
+        # ✅ 3개 테이블을 JOIN하여 제품 정보와 성분 정보를 함께 가져옵니다.
         result = conn.execute(text("""
-            SELECT title, brand, avg_rating, reviews_count, description
+            SELECT 
+                s.product_code, s.title, s.brand, s.avg_rating, s.reviews_count, s.description,
+                i.name as ingredient_name, si.amount_per_serving, si.amount_unit
             FROM supplements
+            LEFT JOIN supplement_ingredients si ON s.supplement_id = si.supplement_id
+            LEFT JOIN ingredients i ON si.ingredient_id = i.ingredient_id
+            ORDER BY s.product_code
         """))
         rows = result.fetchall()
-        return rows
+
+        # ✅ 가져온 데이터를 제품별로 그룹화하여 supplement_facts를 재구성합니다.
+        products_dict = {}
+        for row in rows:
+            product_code = row[0]
+            if product_code not in products_dict:
+                products_dict[product_code] = {
+                    "product_code": product_code,
+                    "title": row[1],
+                    "brand": row[2],
+                    "avg_rating": float(row[3]) if row[3] else 0.0,
+                    "reviews_count": int(row[4]) if row[4] else 0,
+                    "description": row[5] or "",
+                    "supplement_facts": []
+                }
+            
+            if row[6]: # 성분 정보가 있는 경우
+                products_dict[product_code]["supplement_facts"].append({
+                    "name": row[6],
+                    "amount": float(row[7]) if row[7] else 0.0,
+                    "unit": row[8]
+                })
+
+        return list(products_dict.values())
 
 # 2. FAISS 인덱스 생성
 def build_faiss_index():
     print("📦 DB에서 제품 정보 로딩 중...")
-    rows = load_supplements_from_db()
+    products = load_supplements_from_db()
     documents = []
 
-    for row in rows:
-        row = tuple(row)
-        text = f"{row[0]} {row[4]}"  # title + description
-        metadata = {
-            "title": row[0],
-            "brand": row[1],
-            "avg_rating": float(row[2]) if row[2] else 0.0,
-            "reviews_count": int(row[3]) if row[3] else 0,
-            "description": row[4]
-        }
-        documents.append(Document(page_content=text, metadata=metadata))
+    for product in products:
+        text = f"{product['title']} {product['description']}"  # title + description
+        # ✅ 전체 제품 정보를 메타데이터로 저장합니다.
+        documents.append(Document(page_content=text, metadata=product))
 
     print(f"🧠 {len(documents)}개의 문서를 임베딩 중...")
 
