@@ -65,7 +65,6 @@ def intake_check_node(state: AgentState) -> AgentState:
 
     # 총 섭취량 집계
     totals = {}  # {nutrient: {"amount": float, "unit": str}}
-    for item in current:
     for item in all_intake_items:
         n = _norm_name(str(item.get("name", "")))
         amt = float(item.get("amount", 0) or 0)

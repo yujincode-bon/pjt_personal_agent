@@ -21,13 +21,11 @@ def combination_node(state: AgentState) -> AgentState:
 
     mentioned = set(s for s in current)
 
-    for p in recs:
-        desc = (p.get("description") or "").lower()
-        for a, b in good_pairs.union(bad_pairs):
-            if a.lower() in desc:
-                mentioned.add(a)
-            if b.lower() in desc:
-                mentioned.add(b)
+    # ✅ 추천된 제품의 supplement_facts에서 직접 성분 이름을 추출
+    for rec in recs:
+        for fact in rec.get("supplement_facts", []):
+            if fact.get("name"):
+                mentioned.add(fact["name"])
 
     # 조합 판단
     good_hits = {

@@ -1,16 +1,12 @@
 # nodes/recommendation_node.py
 from state import AgentState
 from tools.retrieval import get_supplements_by_faiss
-from tools.db import get_supplements_from_db
 
 def recommendation_node(state: AgentState) -> AgentState:
     symptoms = state["profile"]["symptoms"]
-    # ⚠️ LLM이 추출한 성분을 사용하도록 변경
-    ingredients = state.get("extracted_ingredients", [])
 
     # 벡터 검색
     results = get_supplements_by_faiss(symptoms)
-    results = get_supplements_from_db(ingredients, state["profile"]["sex"], state["profile"]["age"])
 
     # 정규화 + 중복 제거
     seen = set()
