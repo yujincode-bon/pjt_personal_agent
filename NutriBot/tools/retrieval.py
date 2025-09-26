@@ -7,8 +7,9 @@ from langchain_community.vectorstores import FAISS
 # from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_openai import OpenAIEmbeddings
 
-def get_supplements_by_faiss(symptoms: list[str], k: int = 5):
-    query = " ".join(symptoms)
+def get_supplements_by_faiss(ingredients: list[str], k: int = 5):
+    # ⚠️ symptoms 대신 ingredients를 검색어로 사용
+    query = " ".join(ingredients)
 
     embeddings = OpenAIEmbeddings()
     vectorstore = FAISS.load_local(

@@ -33,8 +33,9 @@ def load_all_products() -> List[Dict[str, Any]]:
         })
     return products
 
-def get_supplements_from_db(symptoms: list[str], sex: str, age: int) -> List[Dict[str, Any]]:
+def get_supplements_from_db(ingredients: list[str], sex: str, age: int) -> List[Dict[str, Any]]:
     """
     FAISS 유사도 검색으로 제품 후보를 찾는다.
+    ⚠️ 이제 symptoms 대신 LLM이 추출한 ingredients를 사용합니다.
     """
-    return get_supplements_by_faiss(symptoms, k=10)  # 반환: [{title, brand, avg_rating, reviews_count, description, ...}, ...]
+    return get_supplements_by_faiss(ingredients, k=10)  # 반환: [{title, brand, avg_rating, reviews_count, description, ...}, ...]

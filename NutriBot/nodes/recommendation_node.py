@@ -1,12 +1,18 @@
 # nodes/recommendation_node.py
 from state import AgentState
-from tools.retrieval import get_supplements_by_faiss
+# ⚠️ retrieval.py 대신 db.py의 래퍼 함수를 사용하도록 변경
+from tools.db import get_supplements_from_db
 
 def recommendation_node(state: AgentState) -> AgentState:
-    symptoms = state["profile"]["symptoms"]
+    # ⚠️ LLM이 추출한 성분(ingredients)을 검색어로 사용하도록 변경
+    # 만약 추출된 성분이 없다면, 원래 증상(symptoms)을 대체(fallback)로 사용
+    ingredients_to_search = state.get("extracted_ingredients")
+    if not ingredients_to_search:
+        ingredients_to_search = state["profile"]["symptoms"]
 
     # 벡터 검색
-    results = get_supplements_by_faiss(symptoms)
+    # ⚠️ get_supplements_from_db 함수를 호출하여 검색 수행
+    results = get_supplements_from_db(ingredients_to_search, state["profile"]["sex"], state["profile"]["age"])
 
     # 정규화 + 중복 제거
     seen = set()
