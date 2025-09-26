@@ -18,6 +18,8 @@ def load_all_products() -> List[Dict[str, Any]]:
         result = conn.execute(text("""
             SELECT title, brand, avg_rating, reviews_count, description
             FROM supplements
+            SELECT product_code, title, brand, avg_rating, reviews_count, description, supplement_facts, parsed_ingredients
+            FROM supplements_final
         """))
         rows = result.fetchall()
 
@@ -30,6 +32,14 @@ def load_all_products() -> List[Dict[str, Any]]:
             "avg_rating": float(r[2]) if len(r) > 2 and r[2] is not None else 0.0,
             "reviews_count": int(r[3]) if len(r) > 3 and r[3] is not None else 0,
             "description": str(r[4]) if len(r) > 4 and r[4] is not None else "",
+            "product_code": str(r[0]) if len(r) > 0 else "",
+            "title": str(r[1]) if len(r) > 1 else "",
+            "brand": str(r[2]) if len(r) > 2 else "",
+            "avg_rating": float(r[3]) if len(r) > 3 and r[3] is not None else 0.0,
+            "reviews_count": int(r[4]) if len(r) > 4 and r[4] is not None else 0,
+            "description": str(r[5]) if len(r) > 5 and r[5] is not None else "",
+            "supplement_facts": r[6] if len(r) > 6 and r[6] is not None else [],
+            "parsed_ingredients": r[7] if len(r) > 7 and r[7] is not None else [],
         })
     return products
 
@@ -37,5 +47,23 @@ def get_supplements_from_db(ingredients: list[str], sex: str, age: int) -> List[
     """
     FAISS 유사도 검색으로 제품 후보를 찾는다.
     ⚠️ 이제 symptoms 대신 LLM이 추출한 ingredients를 사용합니다.
+    [임시 구현] DB에서 전체 제품을 로드한 후, ingredients 키워드가 포함된 제품을 필터링합니다.
+    FAISS와 같은 벡터 검색으로 대체될 수 있습니다.
     """
     return get_supplements_by_faiss(ingredients, k=10)  # 반환: [{title, brand, avg_rating, reviews_count, description, ...}, ...]
+    all_products = load_all_products()
+    
+    if not ingredients:
+        return []
+
+    # ingredients 리스트의 각 성분을 소문자로 변환
+    lower_ingredients = [ing.lower() for ing in ingredients]
+    
+    matched_products = []
+    for product in all_products:
+        # 제품명과 설명을 소문자로 변환하여 검색
+        search_text = (product.get("title", "") + " " + product.get("description", "")).lower()
+        if any(ing in search_text for ing in lower_ingredients):
+            matched_products.append(product)
+            
+    return matched_products

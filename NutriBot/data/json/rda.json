@@ -1,0 +1,83 @@
+{
+  "Vitamin C": {
+    "female_19-30": {
+      "rda": 100
+    },
+    "male_19-30": {
+      "rda": 110
+    },
+    "unit": "mg"
+  },
+  "Vitamin D": {
+    "female_19-30": {
+      "rda": 10
+    },
+    "male_19-30": {
+      "rda": 10
+    },
+    "unit": "μg"
+  },
+  "Vitamin B6": {
+    "female_19-30": {
+      "rda": 1.4
+    },
+    "male_19-30": {
+      "rda": 1.5
+    },
+    "unit": "mg"
+  },
+  "Vitamin B12": {
+    "female_19-30": {
+      "rda": 2.4
+    },
+    "male_19-30": {
+      "rda": 2.4
+    },
+    "unit": "μg"
+  },
+  "Folate": {
+    "female_19-30": {
+      "rda": 400
+    },
+    "male_19-30": {
+      "rda": 400
+    },
+    "unit": "μg"
+  },
+  "Magnesium": {
+    "female_19-30": {
+      "rda": 280
+    },
+    "male_19-30": {
+      "rda": 350
+    },
+    "unit": "mg"
+  },
+  "Zinc": {
+    "female_19-30": {
+      "rda": 8
+    },
+    "male_19-30": {
+      "rda": 10
+    },
+    "unit": "mg"
+  },
+  "Calcium": {
+    "female_19-30": {
+      "rda": 700
+    },
+    "male_19-30": {
+      "rda": 700
+    },
+    "unit": "mg"
+  },
+  "Iron": {
+    "female_19-30": {
+      "rda": 14
+    },
+    "male_19-30": {
+      "rda": 10
+    },
+    "unit": "mg"
+  }
+}

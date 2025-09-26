@@ -5,20 +5,19 @@ import psycopg2
 conn = psycopg2.connect(
     host="localhost",
     database="NutriBot",     # 본인 DB 이름
-    user="postgres",              # 본인 사용자명
-    password="67368279",     # 본인 비밀번호
-    port="5432"                   # 기본 포트 (변경했으면 수정)
+    user="postgres",         # 본인 사용자명
+    password="67368279",             # 본인 비밀번호
+    port="5432"
 )
 cur = conn.cursor()
 
 # 2. JSON 파일 열기
-# ✅ 데이터 소스를 새로 파싱된 파일로 변경합니다.
 with open("/Users/gim-yujin/Desktop/pjt_personal_agent/NutriBot/data/json/parsed_supplements_output.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
-# 3. 제품/성분/리뷰 입력
+# 3. 데이터 삽입
 for item in data:
-    # 1) supplements 테이블 입력
+    # 기본 supplement 정보
     title = item.get("title")
     brand = item.get("brand")
     form = item.get("form")
@@ -31,19 +30,24 @@ for item in data:
     product_code = item.get("Product code") or item.get("Pid")
     source_url = item.get("url") or item.get("P url")
 
+    # supplements 테이블 입력
     cur.execute("""
-        INSERT INTO supplements (name, brand, form, servings_per_container, serving_size_value, 
-        serving_size_unit, price, currency, upc, product_code, source_url)
+        INSERT INTO supplements (
+            title, brand, form, servings_per_container,
+            serving_size_value, serving_size_unit, price,
+            currency, upc, product_code, source_url
+        )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING supplement_id
     """, (
-        title, brand, form, servings_per_container, serving_size_value,
-        serving_size_unit, price, currency, upc, product_code, source_url
+        title, brand, form, servings_per_container,
+        serving_size_value, serving_size_unit, price,
+        currency, upc, product_code, source_url
     ))
 
     supplement_id = cur.fetchone()[0]
 
-    # 2) ✅ 'parsed_ingredients'를 우선적으로 사용하고, 없을 경우 'supplement_facts'를 대체로 사용합니다.
+    # 성분 정보 삽입 (parsed_ingredients 우선, 없으면 supplement_facts 사용)
     supplement_facts = item.get("parsed_ingredients") or item.get("supplement_facts", [])
 
     for fact in supplement_facts:
@@ -55,7 +59,7 @@ for item in data:
         if not name or amount is None:
             continue
 
-        # ingredients 테이블에 존재하는지 확인 후 없으면 추가
+        # ingredients 테이블 존재 확인 후 없으면 추가
         cur.execute("SELECT ingredient_id FROM ingredients WHERE name = %s", (name,))
         result = cur.fetchone()
         if result:
@@ -64,9 +68,11 @@ for item in data:
             cur.execute("INSERT INTO ingredients (name) VALUES (%s) RETURNING ingredient_id", (name,))
             ingredient_id = cur.fetchone()[0]
 
-        # supplement_ingredients 삽입
+        # supplement_ingredients 테이블에 삽입
         cur.execute("""
-            INSERT INTO supplement_ingredients (supplement_id, ingredient_id, amount_per_serving, amount_unit, percent_dv)
+            INSERT INTO supplement_ingredients (
+                supplement_id, ingredient_id, amount_per_serving, amount_unit, percent_dv
+            )
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (supplement_id, ingredient_id) DO NOTHING
         """, (
@@ -75,24 +81,26 @@ for item in data:
             percent_dv if percent_dv else None
         ))
 
-    # 3) review_stats 테이블 입력
+    # 리뷰 통계 입력
     avg_rating = item.get("avg_rating")
     reviews_count = item.get("reviews_count")
 
     if avg_rating or reviews_count:
         cur.execute("""
-            INSERT INTO review_stats (supplement_id, avg_rating, reviews_count)
+            INSERT INTO review_stats (
+                supplement_id, avg_rating, reviews_count
+            )
             VALUES (%s, %s, %s)
             ON CONFLICT (supplement_id) DO UPDATE 
             SET avg_rating = EXCLUDED.avg_rating,
                 reviews_count = EXCLUDED.reviews_count
         """, (
-            supplement_id,
-            float(avg_rating) if avg_rating else None,
-            int(reviews_count) if reviews_count else None
+            supplement_id, 
+            avg_rating, 
+            reviews_count
         ))
 
-# 4. 커밋 및 종료
+# 4. 커밋 및 연결 종료
 conn.commit()
 cur.close()
 conn.close()

@@ -1,5 +1,8 @@
 # agent.py
+
 import os
+
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 from dotenv import load_dotenv
 load_dotenv()  # OPENAI_API_KEY, DB_URL 등
 
