@@ -15,13 +15,24 @@ def load_supplements_from_db():
         result = conn.execute(text("""
             SELECT 
                 s.product_code, s.title, s.brand, s.avg_rating, s.reviews_count, s.description,
-                i.name as ingredient_name, si.amount_per_serving, si.amount_unit
+                i.name as ingredient_name, si.amount_per_serving, si.amount_unit, s.supplement_id
             FROM supplements
             LEFT JOIN supplement_ingredients si ON s.supplement_id = si.supplement_id
             LEFT JOIN ingredients i ON si.ingredient_id = i.ingredient_id
             ORDER BY s.product_code
         """))
         rows = result.fetchall()
+
+        # ✅ 원본 JSON 데이터를 로드하여 parsed_ingredients 정보를 가져옵니다.
+        parsed_json_path = Path(__file__).resolve().parent.parent / "data" / "json" / "parsed_supplements_output.json"
+        with open(parsed_json_path, "r", encoding="utf-8") as f:
+            parsed_data = json.load(f)
+        
+        # product_code를 키로 하는 딕셔너리로 변환하여 쉽게 찾을 수 있도록 합니다.
+        parsed_ingredients_map = {}
+        for item in parsed_data:
+            if item.get("Product code"):
+                parsed_ingredients_map[item["Product code"]] = item.get("parsed_ingredients", [])
 
         # ✅ 가져온 데이터를 제품별로 그룹화하여 supplement_facts를 재구성합니다.
         products_dict = {}
@@ -35,7 +46,8 @@ def load_supplements_from_db():
                     "avg_rating": float(row[3]) if row[3] else 0.0,
                     "reviews_count": int(row[4]) if row[4] else 0,
                     "description": row[5] or "",
-                    "supplement_facts": []
+                    "supplement_facts": [],
+                    "parsed_ingredients": parsed_ingredients_map.get(product_code, []) # ✅ 파싱된 성분 정보 추가
                 }
             
             if row[6]: # 성분 정보가 있는 경우

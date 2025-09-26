@@ -12,7 +12,8 @@ conn = psycopg2.connect(
 cur = conn.cursor()
 
 # 2. JSON 파일 열기
-with open("/Users/gim-yujin/Desktop/pjt_personal_agent/데이터/데이터 파일/json/supplement_rag_data_merged_with_reviews.json", "r", encoding="utf-8") as f:
+# ✅ 데이터 소스를 새로 파싱된 파일로 변경합니다.
+with open("/Users/gim-yujin/Desktop/pjt_personal_agent/NutriBot/data/json/parsed_supplements_output.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 # 3. 제품/성분/리뷰 입력
@@ -42,8 +43,9 @@ for item in data:
 
     supplement_id = cur.fetchone()[0]
 
-    # 2) supplement_facts → ingredients & supplement_ingredients
-    supplement_facts = item.get("supplement_facts", [])
+    # 2) ✅ 'parsed_ingredients'를 우선적으로 사용하고, 없을 경우 'supplement_facts'를 대체로 사용합니다.
+    supplement_facts = item.get("parsed_ingredients") or item.get("supplement_facts", [])
+
     for fact in supplement_facts:
         name = fact.get("name")
         amount = fact.get("amount")

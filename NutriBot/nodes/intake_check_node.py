@@ -61,7 +61,9 @@ def intake_check_node(state: AgentState) -> AgentState:
     # 추천된 제품의 성분 정보도 총 섭취량에 합산
     all_intake_items = list(current)
     for rec in state.get("recommendations", []):
-        all_intake_items.extend(rec.get("supplement_facts", []))
+        # ✅ 'parsed_ingredients'를 우선 사용하고, 없으면 'supplement_facts'를 사용
+        ingredients = rec.get("parsed_ingredients") or rec.get("supplement_facts", [])
+        all_intake_items.extend(ingredients)
 
     # 총 섭취량 집계
     totals = {}  # {nutrient: {"amount": float, "unit": str}}
@@ -79,27 +81,16 @@ def intake_check_node(state: AgentState) -> AgentState:
 
     # RDA/UL 비교
     for n, v in totals.items():
-        rda_info = RDA_TABLE.get(n, {})
-        # 예: {"unit":"mg","rda":{"female_29":...},"ul":{"female_29":...}} 등 구조가 다양할 수 있음
-        # 여기서는 단순화: rda, ul 키가 바로 float라고 가정, 없으면 스킵
-        rda = rda_info.get("rda")
-        ul = rda_info.get("ul")
-        unit_rda = rda_info.get("unit", v["unit"])
         nutrient_info = RDA_TABLE.get(n)
         if not nutrient_info:
             continue
 
-        # 단위 무시/가정 (실서비스에서는 반드시 단위 변환 로직 필요)
         rda = _get_rda_value(nutrient_info.get("rda", {}), profile["sex"], profile["age"])
         ul = _get_rda_value(nutrient_info.get("ul", {}), profile["sex"], profile["age"])
 
         # 🚨 단위 변환 로직은 단순화를 위해 생략 (실제 서비스에서는 필수)
         amt = v["amount"]
 
-        if isinstance(rda, (int, float)) and amt > rda * 2:
-            warnings.append(f"⚠️ {n}: 총 {amt}{v['unit']} (RDA 2배 초과, UL 주의 필요)")
-        elif isinstance(ul, (int, float)) and amt > ul:
-            warnings.append(f"⚠️ {n}: 총 {amt}{v['unit']} (UL 초과 가능성)")
         if ul and amt > ul:
             warnings.append(f"🚨 {n}: 총 섭취량 {amt}{v['unit']}이(가) 상한섭취량({ul}{nutrient_info['unit']})을 초과할 수 있습니다.")
         elif rda and amt > rda * 2:
