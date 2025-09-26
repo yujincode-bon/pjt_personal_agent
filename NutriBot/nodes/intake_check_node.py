@@ -17,22 +17,29 @@ def _load_rda_table() -> dict:
 
 
 def _norm_name(s: str) -> str:
+    """
+    다양한 형태의 성분 이름 문자열에서 표준 영양소 이름을 찾아 반환합니다.
+    (예: "Amount Per Serving% Vitamin C (as Ascorbic Acid)" -> "Vitamin C")
+    """
     s = s.lower().strip()
-    # 아주 간단한 표준화(필요시 확장)
-    mapping = {
-        "vitamin c": "Vitamin C",
-        "vit c": "Vitamin C",
-        "ascorbic acid": "Vitamin C",
-        "zinc": "Zinc",
-        "magnesium": "Magnesium",
-        "vitamin b6": "Vitamin B6",
-        "vit b6": "Vitamin B6",
-        "iron": "Iron",
-        "calcium": "Calcium",
-        "vitamin d": "Vitamin D",
-        "vit d": "Vitamin D",
+    
+    # ✅ 요청하신 9가지 영양소와 관련 동의어 목록
+    synonyms = {
+        "Vitamin C": ["vitamin c", "vit c", "ascorbic acid"],
+        "Vitamin D": ["vitamin d", "vit d", "cholecalciferol"],
+        "Vitamin B6": ["vitamin b6", "vit b6", "pyridoxine"],
+        "Vitamin B12": ["vitamin b12", "vit b12", "cobalamin", "methylcobalamin"],
+        "Folate": ["folate", "folic acid", "vitamin b9"],
+        "Magnesium": ["magnesium"],
+        "Zinc": ["zinc"],
+        "Calcium": ["calcium"],
+        "Iron": ["iron"],
     }
-    return mapping.get(s, s.title())
+
+    for std_name, aliases in synonyms.items():
+        if any(alias in s for alias in aliases):
+            return std_name
+    return s.title() # 매칭되는 것이 없으면 원래 이름에서 첫 글자만 대문자로 변경
 
 def _get_rda_value(rda_data: dict, sex: str, age: int) -> float | None:
     """성별과 나이에 맞는 RDA/UL 값을 찾습니다."""
