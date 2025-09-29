@@ -1,9 +1,6 @@
 # pjt_personal_agent
 Sesac AI 기반 데이터 분석가 양성 과정 1기 최종 프로젝트 
 
-물론이죠, 유진님.
-아래는 유진님의 **LangGraph 기반 맞춤형 영양제 추천 챗봇 프로젝트(MVP)**를 위한 완성형 README.md 템플릿입니다.
-
 ⸻
 
 🧠 NutriOne: 맞춤형 영양제 추천 챗봇 (LangGraph + RAG 기반)
